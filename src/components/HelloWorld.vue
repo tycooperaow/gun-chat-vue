@@ -1,40 +1,81 @@
 <template>
   <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+    <section class="header">
+
+      <div v-if="username">
+        <h1>Hello {{username}}</h1>
+        <button @click="signout()" > Log out</button>
+      </div>
+
+      <!-- <div v-else>
+        <button @click="login()" > Login </button>
+      </div> -->
+
+    </section>
+
+    <p>You are connected to <strong>{{chat_group}}</strong></p>
+
+    <section class="chat">
+      <div class="chat-bubble" :class="{'me': username== m.who}" v-for="(m, idx) in all_messages" :key="idx">
+        <p>{{m.what}}</p>
+        <small>{{m.who}} | {{$simplfyDate(m.when)}}</small>
+      </div>
+      <div class="chat-input">
+        <input placeholder="Send a message" v-model="msg" />
+        <button @click="sendMsg()">Send</button>
+      </div>
+    </section>
   </div>
 </template>
 
 <script>
+import {user} from '@/utils/user'
+import GUN from 'gun'
+import {mapState} from 'vuex'
+import 'gun/sea'
+
+const db = GUN()
+
 export default {
   name: 'HelloWorld',
-  props: {
-    msg: String
+  data(){
+    return{
+      msg: '',
+      all_messages: [],
+    }
+  },
+  methods:{
+    async sendMsg(){
+      const secret = await GUN.SEA.encrypt(this.msg, '#foo');
+      // const secret = '#bitcoin'
+      const message = user.get('all').set({ what: secret})
+      const index = new Date().toISOString()
+      db.get(this.chat_group).get(index).put(message)
+      this.msg = ''
+
+    },
+  },
+  computed:{
+    ...mapState(['username', 'chat_group'])
+  },
+  mounted(){
+    db.get(this.chat_group)
+    .map()
+    .once(async (data) =>{
+      if(data){
+        const key = '#foo'
+        var message = {
+          who: await db.user(data).get('alias'),
+          what: (await GUN.SEA.decrypt(data.what, key)) + '',
+          when: GUN.state.is(data, 'what'),
+        }
+      }
+
+      if(message.what){
+        console.log(message)
+        this.all_messages = [...this.all_messages, message].sort((a, b) => a.when - b.when)
+      }
+    })
   }
 }
 </script>
@@ -48,11 +89,20 @@ ul {
   list-style-type: none;
   padding: 0;
 }
-li {
-  display: inline-block;
-  margin: 0 10px;
+.chat {
+  text-align: left;
+  width: 80%;
+  margin: 0 auto;
 }
-a {
-  color: #42b983;
+.chat-bubble{
+  background-color: #f1f0f0;
+  padding: 1rem;
+  margin: .5rem 0;
+  border-radius: 10px;
+}
+.me{
+  background-color: #b8e6d1;
+  text-align: right;
+
 }
 </style>
