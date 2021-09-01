@@ -18,7 +18,8 @@
     <section class="chat">
       <div class="chat-bubble" :class="{'me': username== m.who}" v-for="(m, idx) in all_messages" :key="idx">
         <p>{{m.what}}</p>
-        <small>{{m.who}} | {{$simplfyDate(m.when)}}</small>
+        {{m.when.toFixed(0)}}
+        <small>{{m.who}} | {{$simplfyDate(m.when.toFixed(0))}}</small>
       </div>
       <div class="chat-input">
         <input placeholder="Send a message" v-model="msg" />
